@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Báo cáo HA</title>
+
+  <style>
+    :root{
+      --card: rgba(255,255,255,.06);
+      --border: rgba(255,255,255,.14);
+      --border2: rgba(255,255,255,.18);
+      --text: #e9eefb;
+      --muted: rgba(233,238,251,.72);
+      --primary: #2b77ff;
+      --primary2:#5aa7ff;
+      --shadow: 0 12px 40px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: "Segoe UI", system-ui, -apple-system, Arial;
+      color:var(--text);
+      background:
+        radial-gradient(1100px 600px at 10% 0%, rgba(43,119,255,.22), transparent 55%),
+        radial-gradient(900px 500px at 90% 10%, rgba(90,167,255,.16), transparent 55%),
+        linear-gradient(180deg, #070b14 0%, #0b1220 50%, #070b14 100%);
+      min-height:100vh;
+      padding:28px;
+    }
+    .wrap{max-width:1240px; margin:0 auto;}
+    .title{display:flex; flex-direction:column; gap:6px; margin-bottom:16px;}
+    h1{margin:0; font-size:22px;}
+    .sub{margin:0; color:var(--muted); font-size:13px;}
+    /* màu chữ option */
+select option {
+  background-color: #1a2230;   /* nền dropdown */
+  color: #e9eefb;              /* chữ */
+}
+
+/* option đang được chọn */
+select option:checked {
+  background-color: #2b77ff;   /* xanh */
+  color: #ffffff;
+}
+
+/* hover (chỉ một số browser ăn) */
+select option:hover {
+  background-color: #24324a;
+  color: #ffffff;
+}
+
+
+    .card{
+      background: linear-gradient(180deg, var(--card) 0%, rgba(255,255,255,.04) 100%);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card-h{
+      padding:16px 18px;
+      border-bottom:1px solid var(--border);
+      background: linear-gradient(90deg, rgba(43,119,255,.14), transparent 55%);
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: rgba(233,238,251,.88);
+    }
+    .toast{
+      display:none;
+      margin-left:auto;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid var(--border2);
+      background: rgba(34,197,94,.12);
+      color: rgba(233,238,251,.95);
+      font-size:12px;
+    }
+    .toast.show{display:inline-flex; gap:8px; align-items:center;}
+    .toast.warn{background: rgba(255,77,79,.10);}
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.4fr 1fr auto;
+      gap:12px;
+      padding:16px 18px;
+      align-items: stretch;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns: 1fr; }
+      .actions{justify-content:flex-start;}
+    }
+    .field{display:flex; flex-direction:column;}
+    .field label{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:6px;
+      font-weight:800;
+    }
+    .control{
+      height:44px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid var(--border2);
+      background: rgba(255,255,255,.07);
+      color: var(--text);
+      outline:none;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.18);
+    }
+    input[type="file"].control{padding:7px 12px;}
+    input[type="file"].control::file-selector-button{
+      height:30px;
+      margin-right:10px;
+      border:1px solid rgba(255,255,255,.18);
+      border-radius:12px;
+      background: rgba(255,255,255,.10);
+      color: var(--text);
+      padding:0 12px;
+      cursor:pointer;
+    }
+    select.control{
+      appearance:none;
+      -webkit-appearance:none;
+      background-image:
+        linear-gradient(45deg, transparent 50%, rgba(233,238,251,.75) 50%),
+        linear-gradient(135deg, rgba(233,238,251,.75) 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) 18px,
+        calc(100% - 12px) 18px;
+      background-size: 6px 6px, 6px 6px;
+      background-repeat:no-repeat;
+      padding-right:34px;
+    }
+    .hint{margin-top:8px; font-size:12px; color:var(--muted);}
+
+    .actions{display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; align-items:center;}
+    .btn{
+      height:44px;
+      border:1px solid var(--border2);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      padding:0 14px;
+      border-radius:14px;
+      cursor:pointer;
+      font-weight:800;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      user-select:none;
+    }
+    .btn.primary{
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary2) 100%);
+      border-color: rgba(255,255,255,.14);
+    }
+    .btn:disabled{opacity:.45; cursor:not-allowed;}
+
+    .badges{display:flex; gap:10px; flex-wrap:wrap; padding:0 18px 16px 18px;}
+    .badge{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.05);
+      border-radius:999px;
+      padding:7px 10px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .badge b{color:var(--text)}
+
+    .preview{padding: 0 18px 18px 18px;}
+    .preview-head{
+      display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+      margin: 10px 0 10px;
+    }
+    .note{color:var(--muted); font-size:12px;}
+    .note b{color:var(--text);}
+
+    .table-wrap{
+      border:1px solid var(--border);
+      border-radius:14px;
+      overflow:hidden;
+      background: rgba(255,255,255,.03);
+    }
+    .viewport{
+      height: 560px;
+      overflow:auto;
+    }
+    table{width:100%; border-collapse:separate; border-spacing:0;}
+    thead th{
+      position:sticky; top:0; z-index:2;
+        background: #1a2230;            
+
+      color: var(--text);
+      text-align:center;
+      font-size:12px;
+      padding:10px 8px;
+      border-bottom:1px solid var(--border);
+      white-space:nowrap;
+    }
+    tbody td{
+      padding:9px 8px;
+      font-size:12.5px;
+      color: rgba(233,238,251,.92);
+      border-bottom:1px solid rgba(255,255,255,.06);
+      vertical-align:top;
+    }
+    tbody tr:hover td{background: rgba(90,167,255,.06);}
+    td.center{text-align:center;}
+    td.nowrap{white-space:nowrap;}
+    td.name{min-width:220px;}
+    td.addr{min-width:420px;}
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="title">
+    <h1>Báo cáo huyết áp - đường huyết</h1>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <div class="mono"> © Quoc IT</div>
+      <div id="toast" class="toast">✅</div>
+    </div>
+
+    <div class="grid">
+      <div class="field">
+        <label>Chọn file Excel (.xlsx)</label>
+        <input id="file" class="control" type="file" accept=".xlsx,.xls" />
+        <div class="hint">Tự lấy sheet đầu tiên trong file.</div>
+      </div>
+
+      <div class="field">
+        <label>Bỏ trùng theo</label>
+        <select id="dedupeKey" class="control">
+          <option value="MAHOSOBENHAN" selected>Mã bệnh án (MAHOSOBENHAN) — mặc định</option>
+          <option value="MABENHNHAN">Mã bệnh nhân (MABENHNHAN)</option>
+          <option value="MA_BHYT">Số thẻ BHYT (MA_BHYT)</option>
+          <option value="TEN_NAMSINH_BHYT">Họ tên + Năm sinh + BHYT</option>
+        </select>
+        <div class="hint">Đổi tiêu chí rồi bấm <b>Tạo lại</b>.</div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="rebuildBtn" disabled>🔄 Tạo lại</button>
+        <button class="btn primary" id="downloadBtn" disabled>⬇️ Tải file Excel</button>
+      </div>
+    </div>
+
+    <div class="badges" id="kpi"></div>
+
+    <div class="preview">
+      <div class="preview-head">
+        <div class="note" id="previewNote">Chưa có dữ liệu.</div>
+        <div class="note">Cuộn trong bảng để xem hết.</div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="viewport" id="viewport">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:70px">STT</th>
+                <th>HỌ TÊN</th>
+                <th style="width:90px">NĂM SINH</th>
+                <th style="width:90px">GIỚI TÍNH</th>
+                <th style="width:170px">SỐ THẺ BHYT</th>
+                <th>ĐỊA CHỈ</th>
+                <th style="width:110px">HA TỐI ĐA</th>
+                <th style="width:130px">HA TỐI THIỂU</th>
+                <th style="width:130px">ĐƯỜNG HUYẾT</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ✅ OFFLINE SheetJS (khuyên: v0.18.5) -->
+<!-- <script src="./xlsx.full.min.js"></script> -->
+   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  let allRows = [];
+  let outRows = [];
+  let sheetName = null;
+
+  function showToast(msg, warn=false){
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.toggle("warn", !!warn);
+    t.classList.add("show");
+    clearTimeout(showToast._tm);
+    showToast._tm = setTimeout(()=>t.classList.remove("show"), 2200);
+  }
+
+  // ✅ Fix tiếng Việt an toàn: chỉ normalize NFC (không decode)
+  function fixVN(v){
+    if (v == null) return "";
+    let s = String(v);
+    if (s.normalize) s = s.normalize("NFC");
+    return s.replace(/\s+/g," ").trim();
+  }
+  function toText(v){ return fixVN(v); }
+
+  function toYear(value) {
+    if (value == null || value === "") return "";
+    if (typeof value === "number" && window.XLSX?.SSF?.parse_date_code) {
+      const d = XLSX.SSF.parse_date_code(value);
+      if (d && d.y) return String(d.y);
+    }
+    const s = toText(value);
+    const m = s.match(/(\d{4})/);
+    return m ? m[1] : s;
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function buildKey(r, mode){
+    const maBA  = toText(r["MAHOSOBENHAN"]);
+    const maBN  = toText(r["MABENHNHAN"]);
+    const bhyt  = toText(r["MA_BHYT"] || r["SỐ THẺ BHYT"]);
+    const ten   = toText(r["TENBENHNHAN"] || r["HỌ TÊN"]);
+    const ns    = toYear(r["NGAYSINH"] || r["NĂM SINH"]);
+
+    let key = "";
+    if (mode === "MAHOSOBENHAN") key = maBA;
+    else if (mode === "MABENHNHAN") key = maBN;
+    else if (mode === "MA_BHYT") key = bhyt;
+    else if (mode === "TEN_NAMSINH_BHYT") key = `${ten}|${ns}|${bhyt}`;
+
+    if (!key || key === "||") {
+      if (maBA) return `FALLBACK_MABA:${maBA}`;
+      if (maBN) return `FALLBACK_MABN:${maBN}`;
+      if (bhyt) return `FALLBACK_BHYT:${bhyt}`;
+      if (ten || ns) return `FALLBACK_TENNS:${ten}|${ns}`;
+      return "";
+    }
+    return `${mode}:${key}`;
+  }
+
+  function transform(rows, dedupeMode){
+    const seen = new Set();
+    const out = [];
+
+    for (const r of rows) {
+      const hoTen = toText(r["TENBENHNHAN"] || r["HỌ TÊN"] || r["HO_TEN"]);
+      const namSinh = toYear(r["NGAYSINH"] || r["NĂM SINH"] || r["NAM_SINH"]);
+      const gioiTinh = toText(r["GIOITINH"] || r["GIỚI TÍNH"] || r["GIOI_TINH"]);
+      const soThe = toText(r["MA_BHYT"] || r["SỐ THẺ BHYT"] || r["SO_THE_BHYT"]);
+      const diaChi = toText(r["DIACHI"] || r["ĐỊA CHỈ"] || r["DIA_CHI"]);
+
+      const haToiDa = toText(r["HUYETAP_CAO"] || r["HA TỐI ĐA"] || r["HA_TOI_DA"]);
+      const haToiThieu = toText(r["HUYETAP_THAP"] || r["HA TỐI THIỂU"] || r["HA_TOI_THIEU"]);
+      const duongHuyet = toText(r["CHISO_DUONG"] || r["ĐƯỜNG HUYẾT"] || r["DUONG_HUYET"]);
+
+      const hasAny = hoTen || soThe || diaChi || haToiDa || haToiThieu || duongHuyet;
+      if (!hasAny) continue;
+
+      const k = buildKey(r, dedupeMode);
+      if (k && seen.has(k)) continue;
+      if (k) seen.add(k);
+
+      out.push({
+        "STT": out.length + 1,
+        "HỌ TÊN": hoTen,
+        "NĂM SINH": namSinh,
+        "GIỚI TÍNH": gioiTinh,
+        "SỐ THẺ BHYT": soThe,
+        "ĐỊA CHỈ": diaChi,
+        "HA TỐI ĐA": haToiDa,
+        "HA TỐI THIỂU": haToiThieu,
+        "ĐƯỜNG HUYẾT": duongHuyet
+      });
+    }
+    return out;
+  }
+
+  function renderKPI(totalIn, totalOut, mode){
+    const removed = Math.max(0, totalIn - totalOut);
+    $("kpi").innerHTML = `
+      <span class="badge">Sheet: <b>${escapeHtml(sheetName || "-")}</b></span>
+      <span class="badge">Bỏ trùng theo: <b>${escapeHtml(mode)}</b></span>
+      <span class="badge">Dòng đầu vào: <b>${totalIn.toLocaleString("vi-VN")}</b></span>
+      <span class="badge">Sau bỏ trùng: <b>${totalOut.toLocaleString("vi-VN")}</b></span>
+      <span class="badge">Loại trùng: <b>${removed.toLocaleString("vi-VN")}</b></span>
+    `;
+  }
+
+  function renderFullTable(rows){
+    let html = "";
+    for (const r of rows){
+      html += `
+        <tr>
+          <td class="center nowrap">${r["STT"]}</td>
+          <td class="name">${escapeHtml(r["HỌ TÊN"])}</td>
+          <td class="nowrap">${escapeHtml(r["NĂM SINH"])}</td>
+          <td class="nowrap">${escapeHtml(r["GIỚI TÍNH"])}</td>
+          <td class="nowrap">${escapeHtml(r["SỐ THẺ BHYT"])}</td>
+          <td class="addr">${escapeHtml(r["ĐỊA CHỈ"])}</td>
+          <td class="nowrap">${escapeHtml(r["HA TỐI ĐA"])}</td>
+          <td class="nowrap">${escapeHtml(r["HA TỐI THIỂU"])}</td>
+          <td class="nowrap">${escapeHtml(r["ĐƯỜNG HUYẾT"])}</td>
+        </tr>
+      `;
+    }
+    $("tbody").innerHTML = html;
+  }
+
+  function rebuild(autoToast=true){
+    if (!allRows?.length) return;
+    const mode = $("dedupeKey").value;
+    outRows = transform(allRows, mode);
+    renderKPI(allRows.length, outRows.length, mode);
+    renderFullTable(outRows);
+    $("previewNote").innerHTML = `Xem trước: <b>${outRows.length.toLocaleString("vi-VN")}</b> dòng • Cuộn bình thường.`;
+    if (autoToast) showToast("✅ Đã tạo lại & xem trước");
+  }
+
+  function downloadXlsx(rows){
+    const headers = ["STT","HỌ TÊN","NĂM SINH","GIỚI TÍNH","SỐ THẺ BHYT","ĐỊA CHỈ","HA TỐI ĐA","HA TỐI THIỂU","ĐƯỜNG HUYẾT"];
+    const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+    ws["!cols"] = [
+      { wch: 6 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 18 },
+      { wch: 55 }, { wch: 12 }, { wch: 14 }, { wch: 14 }
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "DS_BN_BO_TRUNG");
+    XLSX.writeFile(wb, `BaoCao_HuyetAp_DuongHuyet.xlsx`);
+  }
+
+  // ✅ đọc file theo kiểu code cũ (binary string)
+  $("file").addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    $("tbody").innerHTML = "";
+    $("kpi").innerHTML = "";
+    $("previewNote").textContent = "Đang đọc file...";
+    $("rebuildBtn").disabled = true;
+    $("downloadBtn").disabled = true;
+
+    if (!file) return;
+
+    if (!window.XLSX){
+      showToast("❌ Chưa load XLSX. Kiểm tra xlsx.full.min.js", true);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.readAsBinaryString(file);
+
+    reader.onload = (evt) => {
+      try{
+        const wb = XLSX.read(evt.target.result, { type: "binary" });
+        const names = wb.SheetNames || [];
+        if (!names.length) throw new Error("No sheets");
+        sheetName = names[0];
+
+        const ws = wb.Sheets[sheetName];
+
+        // raw:false giúp lấy chuỗi đã format (thường ổn định hơn)
+        allRows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: false });
+
+        $("rebuildBtn").disabled = false;
+        $("downloadBtn").disabled = false;
+
+        rebuild(false);
+        showToast("✅ Đã đọc file & xem trước");
+      } catch(err){
+        console.error(err);
+        showToast("❌ Lỗi đọc file", true);
+        $("previewNote").textContent = "Lỗi đọc file.";
+      }
+    };
+  });
+
+  $("rebuildBtn").addEventListener("click", () => rebuild(true));
+  $("downloadBtn").addEventListener("click", () => {
+    if (!outRows?.length) rebuild(false);
+    if (!outRows?.length) return showToast("⚠️ Không có dữ liệu để xuất", true);
+    downloadXlsx(outRows);
+    showToast("⬇️ Đã xuất file Excel");
+  });
+</script>
+</body>
+</html>
