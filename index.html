@@ -33,24 +33,11 @@
     .title{display:flex; flex-direction:column; gap:6px; margin-bottom:16px;}
     h1{margin:0; font-size:22px;}
     .sub{margin:0; color:var(--muted); font-size:13px;}
-    /* màu chữ option */
-select option {
-  background-color: #1a2230;   /* nền dropdown */
-  color: #e9eefb;              /* chữ */
-}
 
-/* option đang được chọn */
-select option:checked {
-  background-color: #2b77ff;   /* xanh */
-  color: #ffffff;
-}
-
-/* hover (chỉ một số browser ăn) */
-select option:hover {
-  background-color: #24324a;
-  color: #ffffff;
-}
-
+    /* option styling (tùy browser/OS) */
+    select option { background-color:#1a2230; color:#e9eefb; }
+    select option:checked { background-color:#2b77ff; color:#fff; }
+    select option:hover { background-color:#24324a; color:#fff; }
 
     .card{
       background: linear-gradient(180deg, var(--card) 0%, rgba(255,255,255,.04) 100%);
@@ -190,16 +177,19 @@ select option:hover {
     }
     table{width:100%; border-collapse:separate; border-spacing:0;}
     thead th{
-      position:sticky; top:0; z-index:2;
-        background: #1a2230;            
-
+      position:sticky; top:0; z-index:10;
+      background:#1a2230; /* ✅ không xuyên thấu */
       color: var(--text);
       text-align:center;
       font-size:12px;
       padding:10px 8px;
       border-bottom:1px solid var(--border);
       white-space:nowrap;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
     }
+    thead { background:#1a2230; }
+
     tbody td{
       padding:9px 8px;
       font-size:12.5px;
@@ -212,6 +202,8 @@ select option:hover {
     td.nowrap{white-space:nowrap;}
     td.name{min-width:220px;}
     td.addr{min-width:420px;}
+    td.diag{min-width:220px;}
+    td.type{min-width:200px;}
   </style>
 </head>
 
@@ -219,11 +211,12 @@ select option:hover {
 <div class="wrap">
   <div class="title">
     <h1>Báo cáo huyết áp - đường huyết</h1>
+    <p class="sub">Xuất thêm 2 cột: <b>MACHANDOANVAOKHOA</b> (cột X) và <b>TENLOAITIEPNHAN</b> (cột AX).</p>
   </div>
 
   <div class="card">
     <div class="card-h">
-      <div class="mono"> © Quoc IT</div>
+      <div class="mono">© Quoc IT</div>
       <div id="toast" class="toast">✅</div>
     </div>
 
@@ -270,6 +263,8 @@ select option:hover {
                 <th style="width:90px">GIỚI TÍNH</th>
                 <th style="width:170px">SỐ THẺ BHYT</th>
                 <th>ĐỊA CHỈ</th>
+                <th>MACHANDOANVAOKHOA</th>
+                <th>TENLOAITIEPNHAN</th>
                 <th style="width:110px">HA TỐI ĐA</th>
                 <th style="width:130px">HA TỐI THIỂU</th>
                 <th style="width:130px">ĐƯỜNG HUYẾT</th>
@@ -284,10 +279,8 @@ select option:hover {
   </div>
 </div>
 
-<!-- ✅ OFFLINE SheetJS (khuyên: v0.18.5) -->
-<!-- <script src="./xlsx.full.min.js"></script> -->
-   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
+<!-- ✅ SheetJS (CDN v0.18.5) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
   const $ = (id) => document.getElementById(id);
@@ -295,6 +288,7 @@ select option:hover {
   let allRows = [];
   let outRows = [];
   let sheetName = null;
+  let __AOA__ = null; // AOA để lấy đúng cột X/AX theo chữ cái
 
   function showToast(msg, warn=false){
     const t = $("toast");
@@ -305,11 +299,11 @@ select option:hover {
     showToast._tm = setTimeout(()=>t.classList.remove("show"), 2200);
   }
 
-  // ✅ Fix tiếng Việt an toàn: chỉ normalize NFC (không decode)
+  // normalize nhẹ
   function fixVN(v){
     if (v == null) return "";
     let s = String(v);
-    if (s.normalize) s = s.normalize("NFC");
+    try { if (s.normalize) s = s.normalize("NFC"); } catch(e){}
     return s.replace(/\s+/g," ").trim();
   }
   function toText(v){ return fixVN(v); }
@@ -357,11 +351,18 @@ select option:hover {
     return `${mode}:${key}`;
   }
 
+  // X = cột 24 => index 23 ; AX = cột 50 => index 49
+  const IDX_X  = 23;
+  const IDX_AX = 49;
+
   function transform(rows, dedupeMode){
     const seen = new Set();
     const out = [];
+    const aoa = __AOA__ || [];
 
-    for (const r of rows) {
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+
       const hoTen = toText(r["TENBENHNHAN"] || r["HỌ TÊN"] || r["HO_TEN"]);
       const namSinh = toYear(r["NGAYSINH"] || r["NĂM SINH"] || r["NAM_SINH"]);
       const gioiTinh = toText(r["GIOITINH"] || r["GIỚI TÍNH"] || r["GIOI_TINH"]);
@@ -372,7 +373,13 @@ select option:hover {
       const haToiThieu = toText(r["HUYETAP_THAP"] || r["HA TỐI THIỂU"] || r["HA_TOI_THIEU"]);
       const duongHuyet = toText(r["CHISO_DUONG"] || r["ĐƯỜNG HUYẾT"] || r["DUONG_HUYET"]);
 
-      const hasAny = hoTen || soThe || diaChi || haToiDa || haToiThieu || duongHuyet;
+      // ✅ lấy đúng theo cột chữ cái từ AOA (cùng dòng i)
+      // AOA[0] là header, dữ liệu bắt đầu từ AOA[1]
+      const aoaRow = aoa[i + 1] || [];
+      const machanDoan = toText(aoaRow[IDX_X] ?? "");
+      const tenLoaiTN  = toText(aoaRow[IDX_AX] ?? "");
+
+      const hasAny = hoTen || soThe || diaChi || haToiDa || haToiThieu || duongHuyet || machanDoan || tenLoaiTN;
       if (!hasAny) continue;
 
       const k = buildKey(r, dedupeMode);
@@ -386,6 +393,8 @@ select option:hover {
         "GIỚI TÍNH": gioiTinh,
         "SỐ THẺ BHYT": soThe,
         "ĐỊA CHỈ": diaChi,
+        "MACHANDOANVAOKHOA": machanDoan,
+        "TENLOAITIEPNHAN": tenLoaiTN,
         "HA TỐI ĐA": haToiDa,
         "HA TỐI THIỂU": haToiThieu,
         "ĐƯỜNG HUYẾT": duongHuyet
@@ -416,6 +425,8 @@ select option:hover {
           <td class="nowrap">${escapeHtml(r["GIỚI TÍNH"])}</td>
           <td class="nowrap">${escapeHtml(r["SỐ THẺ BHYT"])}</td>
           <td class="addr">${escapeHtml(r["ĐỊA CHỈ"])}</td>
+          <td class="diag">${escapeHtml(r["MACHANDOANVAOKHOA"])}</td>
+          <td class="type">${escapeHtml(r["TENLOAITIEPNHAN"])}</td>
           <td class="nowrap">${escapeHtml(r["HA TỐI ĐA"])}</td>
           <td class="nowrap">${escapeHtml(r["HA TỐI THIỂU"])}</td>
           <td class="nowrap">${escapeHtml(r["ĐƯỜNG HUYẾT"])}</td>
@@ -436,14 +447,29 @@ select option:hover {
   }
 
   function downloadXlsx(rows){
-    const headers = ["STT","HỌ TÊN","NĂM SINH","GIỚI TÍNH","SỐ THẺ BHYT","ĐỊA CHỈ","HA TỐI ĐA","HA TỐI THIỂU","ĐƯỜNG HUYẾT"];
+    const headers = [
+      "STT","HỌ TÊN","NĂM SINH","GIỚI TÍNH","SỐ THẺ BHYT","ĐỊA CHỈ",
+      "MACHANDOANVAOKHOA","TENLOAITIEPNHAN",
+      "HA TỐI ĐA","HA TỐI THIỂU","ĐƯỜNG HUYẾT"
+    ];
+
     const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
     ws["!cols"] = [
-      { wch: 6 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 18 },
-      { wch: 55 }, { wch: 12 }, { wch: 14 }, { wch: 14 }
+      { wch: 6 },   // STT
+      { wch: 28 },  // HỌ TÊN
+      { wch: 10 },  // NĂM SINH
+      { wch: 10 },  // GIỚI TÍNH
+      { wch: 18 },  // SỐ THẺ BHYT
+      { wch: 55 },  // ĐỊA CHỈ
+      { wch: 22 },  // MACHANDOANVAOKHOA
+      { wch: 24 },  // TENLOAITIEPNHAN
+      { wch: 12 },  // HA TỐI ĐA
+      { wch: 14 },  // HA TỐI THIỂU
+      { wch: 14 }   // ĐƯỜNG HUYẾT
     ];
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "DS_BN_BO_TRUNG");
+    XLSX.utils.book_append_sheet(wb, ws, "BAO_CAO_HA");
     XLSX.writeFile(wb, `BaoCao_HuyetAp_DuongHuyet.xlsx`);
   }
 
@@ -475,8 +501,11 @@ select option:hover {
 
         const ws = wb.Sheets[sheetName];
 
-        // raw:false giúp lấy chuỗi đã format (thường ổn định hơn)
+        // object rows
         allRows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: false });
+
+        // AOA rows (header:1) để lấy đúng cột theo chữ cái X/AX
+        __AOA__ = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
 
         $("rebuildBtn").disabled = false;
         $("downloadBtn").disabled = false;
