@@ -211,7 +211,7 @@
 <div class="wrap">
   <div class="title">
     <h1>Báo cáo huyết áp - đường huyết</h1>
-    <p class="sub">Xuất thêm 2 cột: <b>MACHANDOANVAOKHOA</b> (cột X) và <b>TENLOAITIEPNHAN</b> (cột AX).</p>
+    <p class="sub">Xuất thêm 2 cột: <b>MACHANDOANRAVIEN</b> (cột AF) và <b>TENLOAITIEPNHAN</b> (cột AX).</p>
   </div>
 
   <div class="card">
@@ -263,7 +263,7 @@
                 <th style="width:90px">GIỚI TÍNH</th>
                 <th style="width:170px">SỐ THẺ BHYT</th>
                 <th>ĐỊA CHỈ</th>
-                <th>MACHANDOANVAOKHOA</th>
+                <th>MACHANDOANRAVIEN</th>
                 <th>TENLOAITIEPNHAN</th>
                 <th style="width:110px">HA TỐI ĐA</th>
                 <th style="width:130px">HA TỐI THIỂU</th>
@@ -288,7 +288,7 @@
   let allRows = [];
   let outRows = [];
   let sheetName = null;
-  let __AOA__ = null; // AOA để lấy đúng cột X/AX theo chữ cái
+  let __AOA__ = null; // AOA để lấy đúng cột AF/AX theo chữ cái
 
   function showToast(msg, warn=false){
     const t = $("toast");
@@ -351,8 +351,8 @@
     return `${mode}:${key}`;
   }
 
-  // X = cột 24 => index 23 ; AX = cột 50 => index 49
-  const IDX_X  = 23;
+  // ✅ AF = cột 32 => index 31 ; AX = cột 50 => index 49
+  const IDX_AF = 31;
   const IDX_AX = 49;
 
   function transform(rows, dedupeMode){
@@ -376,10 +376,10 @@
       // ✅ lấy đúng theo cột chữ cái từ AOA (cùng dòng i)
       // AOA[0] là header, dữ liệu bắt đầu từ AOA[1]
       const aoaRow = aoa[i + 1] || [];
-      const machanDoan = toText(aoaRow[IDX_X] ?? "");
-      const tenLoaiTN  = toText(aoaRow[IDX_AX] ?? "");
+      const machanRaVien = toText(aoaRow[IDX_AF] ?? "");
+      const tenLoaiTN    = toText(aoaRow[IDX_AX] ?? "");
 
-      const hasAny = hoTen || soThe || diaChi || haToiDa || haToiThieu || duongHuyet || machanDoan || tenLoaiTN;
+      const hasAny = hoTen || soThe || diaChi || haToiDa || haToiThieu || duongHuyet || machanRaVien || tenLoaiTN;
       if (!hasAny) continue;
 
       const k = buildKey(r, dedupeMode);
@@ -393,7 +393,7 @@
         "GIỚI TÍNH": gioiTinh,
         "SỐ THẺ BHYT": soThe,
         "ĐỊA CHỈ": diaChi,
-        "MACHANDOANVAOKHOA": machanDoan,
+        "MACHANDOANRAVIEN": machanRaVien,
         "TENLOAITIEPNHAN": tenLoaiTN,
         "HA TỐI ĐA": haToiDa,
         "HA TỐI THIỂU": haToiThieu,
@@ -425,7 +425,7 @@
           <td class="nowrap">${escapeHtml(r["GIỚI TÍNH"])}</td>
           <td class="nowrap">${escapeHtml(r["SỐ THẺ BHYT"])}</td>
           <td class="addr">${escapeHtml(r["ĐỊA CHỈ"])}</td>
-          <td class="diag">${escapeHtml(r["MACHANDOANVAOKHOA"])}</td>
+          <td class="diag">${escapeHtml(r["MACHANDOANRAVIEN"])}</td>
           <td class="type">${escapeHtml(r["TENLOAITIEPNHAN"])}</td>
           <td class="nowrap">${escapeHtml(r["HA TỐI ĐA"])}</td>
           <td class="nowrap">${escapeHtml(r["HA TỐI THIỂU"])}</td>
@@ -449,7 +449,7 @@
   function downloadXlsx(rows){
     const headers = [
       "STT","HỌ TÊN","NĂM SINH","GIỚI TÍNH","SỐ THẺ BHYT","ĐỊA CHỈ",
-      "MACHANDOANVAOKHOA","TENLOAITIEPNHAN",
+      "MACHANDOANRAVIEN","TENLOAITIEPNHAN",
       "HA TỐI ĐA","HA TỐI THIỂU","ĐƯỜNG HUYẾT"
     ];
 
@@ -461,7 +461,7 @@
       { wch: 10 },  // GIỚI TÍNH
       { wch: 18 },  // SỐ THẺ BHYT
       { wch: 55 },  // ĐỊA CHỈ
-      { wch: 22 },  // MACHANDOANVAOKHOA
+      { wch: 22 },  // MACHANDOANRAVIEN
       { wch: 24 },  // TENLOAITIEPNHAN
       { wch: 12 },  // HA TỐI ĐA
       { wch: 14 },  // HA TỐI THIỂU
@@ -504,7 +504,7 @@
         // object rows
         allRows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: false });
 
-        // AOA rows (header:1) để lấy đúng cột theo chữ cái X/AX
+        // AOA rows (header:1) để lấy đúng cột theo chữ cái AF/AX
         __AOA__ = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
 
         $("rebuildBtn").disabled = false;
